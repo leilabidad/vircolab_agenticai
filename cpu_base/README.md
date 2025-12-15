@@ -5,7 +5,7 @@
 ```
 
 
-vircolab_agenticai/
+cpu_base/
 │
 ├── config/
 │   └── config.yaml
