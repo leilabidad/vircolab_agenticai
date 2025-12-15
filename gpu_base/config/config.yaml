@@ -1,0 +1,22 @@
+runtime:
+  device: cuda
+  batch_size: 16
+  save_every: 500
+  progress_bar: true
+
+paths:
+  chexpert: ./data/Mimic_Samples/mimic-cxr-2.0.0-chexpert.csv.gz
+  metadata: ./data/Mimic_Samples/mimic-cxr-2.0.0-metadata.csv.gz
+  split: ./data/Mimic_Samples/mimic-cxr-2.0.0-split.csv.gz
+  images: ./data/Mimic_Samples/P10_Samples
+  clinical_notes: ./data/clinical_notes
+  output: ./results/final_dataset.pt
+
+filtering:
+  require_any:
+    - image
+    - note
+
+model:
+  name: emilyalsentzer/Bio_ClinicalBERT
+  max_length: 256
