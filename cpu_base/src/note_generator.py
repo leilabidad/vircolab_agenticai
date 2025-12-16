@@ -1,5 +1,19 @@
 from pathlib import Path
 
+from pathlib import Path
+
+def load_note(row, base_path):
+    subject_id = str(row.subject_id)
+    study_id = str(row.study_id)
+
+    note_path = Path(base_path) / f"p{subject_id}" / f"s{study_id}.txt"
+
+    if note_path.exists() and note_path.stat().st_size > 0:
+        return note_path
+    return None
+
+
+
 def build_note(row, labels, cfg):
     note_dir = Path(cfg["paths"]["notes"])
     note_dir.mkdir(parents=True, exist_ok=True)

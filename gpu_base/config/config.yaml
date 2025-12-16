@@ -5,12 +5,13 @@ runtime:
   progress_bar: true
 
 paths:
-  chexpert: ./data/Mimic_Samples/mimic-cxr-2.0.0-chexpert.csv.gz
-  metadata: ./data/Mimic_Samples/mimic-cxr-2.0.0-metadata.csv.gz
-  split: ./data/Mimic_Samples/mimic-cxr-2.0.0-split.csv.gz
-  images: ./data/Mimic_Samples/P10_Samples
-  clinical_notes: ./data/clinical_notes
-  output: ./results/final_dataset.pt
+  chexpert: ../mimicdst/mimic-cxr-2.0.0-chexpert.csv.gz
+  metadata: ../mimicdst/mimic-cxr-2.0.0-metadata.csv.gz
+  split: ../mimicdst/mimic-cxr-2.0.0-split.csv.gz
+  images: ../mimicdst/P10_Samples
+  notes: ./data/fake_notes
+  output: ./results/final_mimic_visit_level.csv
+
 
 filtering:
   require_any:

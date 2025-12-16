@@ -1,10 +1,11 @@
 paths:
-  chexpert: ./data/Mimic_Samples/mimic-cxr-2.0.0-chexpert.csv.gz
-  metadata: ./data/Mimic_Samples/mimic-cxr-2.0.0-metadata.csv.gz
-  split: ./data/Mimic_Samples/mimic-cxr-2.0.0-split.csv.gz
-  images: ./data/Mimic_Samples/P10_Samples
-  notes: ./data/fake_notes
+  chexpert: ../mimicdst/mimic-cxr-2.0.0-chexpert.csv.gz
+  metadata: ../mimicdst/mimic-cxr-2.0.0-metadata.csv.gz
+  split: ../mimicdst/mimic-cxr-2.0.0-split.csv.gz
+  images: ../mimicdst/P10_Samples
+  notes: ../mimicdst/P10_ClinicalNotes
   output: ./results/final_mimic_visit_level.csv
+
 
 runtime:
   device: cpu
@@ -12,7 +13,7 @@ runtime:
   progress_bar: true
 
 clinical_note:
-  mode: fake
+  mode: real
   allow_missing: true
 
 filtering:
