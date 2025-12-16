@@ -4,7 +4,7 @@ def select_images(metadata, base_path):
     def pick_one(df, views, name):
         tmp = df[df["ViewPosition"].isin(views)].copy()
         tmp["path"] = tmp.apply(
-            lambda r: Path(base_path) / f"{r.study_id}" / f"{r.dicom_id}.jpg", axis=1
+            lambda r: Path(base_path) / f"p{r.subject_id}" / f"s{r.study_id}" / f"{r.dicom_id}.jpg", axis=1
         )
         tmp = tmp.sort_values(["study_id","dicom_id"]).drop_duplicates("study_id")
         return tmp[["study_id","path"]].rename(columns={"path": name})
