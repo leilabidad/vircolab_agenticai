@@ -1,4 +1,6 @@
 paths:
+  mimic_prepared_csv: ../cpu_base/results/final_mimic_visit_level.csv
+  embedding_cm_csv: ../cpu_base/results/embedding_cm.csv
   chexpert: ../mimicdst/mimic-cxr-2.0.0-chexpert.csv.gz
   metadata: ../mimicdst/mimic-cxr-2.0.0-metadata.csv.gz
   split: ../mimicdst/mimic-cxr-2.0.0-split.csv.gz
