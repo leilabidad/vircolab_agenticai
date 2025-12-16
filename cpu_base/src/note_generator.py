@@ -1,7 +1,5 @@
 from pathlib import Path
 
-from pathlib import Path
-
 def load_note(row, base_path):
     subject_id = str(row.subject_id)
     study_id = str(row.study_id)
