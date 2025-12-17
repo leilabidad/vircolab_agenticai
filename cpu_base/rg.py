@@ -18,7 +18,7 @@ class NotesDataset(Dataset):
 
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
-        text_path = self.notes_base / row[self.text_col]
+        text_path = row[self.text_col]
         with open(text_path, "r", encoding="utf-8") as f:
             llm_input = f.read()
         return row["subject_id"], row["study_id"], llm_input
