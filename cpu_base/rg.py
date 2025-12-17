@@ -18,10 +18,13 @@ class NotesDataset(Dataset):
 
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
-        text_path = row[self.text_col]
+        text_path = self.notes_base / row[self.text_col]
         with open(text_path, "r", encoding="utf-8") as f:
             llm_input = f.read()
         return row["subject_id"], row["study_id"], llm_input
+
+def collate_notes(batch):
+    return batch
 
 def extract_json(text):
     start = text.find("{")
@@ -65,12 +68,14 @@ def ask_ollama_batch(prompts, retries=3, timeout=60):
 with open("./config/config.yaml") as f:
     cfg = yaml.safe_load(f)
 
+device = cfg["runtime"]["device"]
+
 dataset = NotesDataset(
     cfg["paths"]["mimic_prepared_csv"],
     cfg["paths"]["notes"],
     "path_clinical_note"
 )
-loader = DataLoader(dataset, batch_size=4, shuffle=False)
+loader = DataLoader(dataset, batch_size=4, shuffle=False, collate_fn=collate_notes)
 
 results = []
 total_batches = len(loader)
@@ -99,7 +104,7 @@ INPUT:
     remaining_est = (elapsed_global / (i+1)) * (total_batches - (i+1))
     tqdm.write(f"Batch {i+1}/{total_batches} processed in {batch_duration:.2f}s, elapsed: {elapsed_global:.2f}s, est remaining: {remaining_est:.2f}s")
     for sid, stid, res in zip(subject_ids, study_ids, batch_results):
-        row = {"subject_id": sid.item(), "study_id": stid.item()}
+        row = {"subject_id": sid, "study_id": stid}
         row.update(res)
         results.append(row)
 
