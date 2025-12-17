@@ -2,15 +2,13 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 from PIL import Image
-
+import numpy as np
 
 class DualViewCXRDataset(Dataset):
     def __init__(self, csv_path, cfg, split, transform=None):
         self.cfg = cfg
         self.df = pd.read_csv(csv_path)
-        self.df = self.df[
-            self.df[cfg["data"]["split_column"]] == split
-        ].reset_index(drop=True)
+        self.df = self.df[self.df[cfg["data"]["split_column"]] == split].reset_index(drop=True)
 
         self.transform = transform
         self.fr_col = cfg["data"]["image_columns"]["frontal"]
@@ -33,9 +31,8 @@ class DualViewCXRDataset(Dataset):
             img_fr = self.transform(img_fr)
             img_la = self.transform(img_la)
 
-        y = torch.tensor(
-            row[self.label_cols].values,
-            dtype=torch.float32
-        )
+        labels = row[self.label_cols].values.astype(np.float32)
+        labels = np.nan_to_num(labels, nan=0.0)
+        y = torch.tensor(labels, dtype=torch.float32)
 
         return img_fr, img_la, y, row[self.sid], row[self.stid]
