@@ -6,10 +6,11 @@ def select_images(metadata, base_path):
         tmp["path"] = tmp.apply(
             lambda r: Path(base_path) / f"p{r.subject_id}" / f"s{r.study_id}" / f"{r.dicom_id}.jpg", axis=1
         )
-        tmp = tmp.sort_values(["study_id","dicom_id"]).drop_duplicates("study_id")
-        return tmp[["study_id","path"]].rename(columns={"path": name})
+        tmp = tmp[tmp["path"].apply(lambda p: p.exists())]
+        tmp = tmp.sort_values(["study_id", "dicom_id"]).drop_duplicates("study_id")
+        return tmp[["study_id", "path"]].rename(columns={"path": name})
 
-    frontal = pick_one(metadata, ["PA","AP"], "path_img_fr")
+    frontal = pick_one(metadata, ["PA", "AP"], "path_img_fr")
     lateral = pick_one(metadata, ["LATERAL"], "path_img_la")
 
     return frontal, lateral
