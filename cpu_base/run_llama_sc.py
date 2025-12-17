@@ -1,11 +1,10 @@
-import torch
-from torch.utils.data import Dataset, DataLoader
 import pandas as pd
 from pathlib import Path
-import yaml
+import requests
 import json
-
-from src.text.llama_loader import LlamaEncoder
+from torch.utils.data import Dataset, DataLoader
+import time
+import yaml
 
 class NotesDataset(Dataset):
     def __init__(self, csv_path, notes_base, text_col):
@@ -23,10 +22,48 @@ class NotesDataset(Dataset):
             llm_input = f.read()
         return row["subject_id"], row["study_id"], llm_input
 
+def extract_json(text):
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1:
+        return text.strip()
+    return text[start:end+1]
+
+def ask_ollama(prompt, retries=3, timeout=30):
+    url = "http://localhost:11434/api/generate"
+    payload = {
+        "model": "llama3.1:70b",
+        "prompt": prompt,
+        "stream": False,
+        "options": {"temperature": 0}
+    }
+    last_error = None
+    for attempt in range(retries):
+        try:
+            start_time = time.time()
+            response = requests.post(url, json=payload, timeout=timeout)
+            duration_seconds = time.time() - start_time
+            data = response.json()
+            raw_model_output = data.get("response", "")
+            extracted = extract_json(raw_model_output)
+            result = {"response_time_seconds": round(duration_seconds,2)}
+            try:
+                parsed = json.loads(extracted)
+                if isinstance(parsed, dict):
+                    result.update(parsed)
+                else:
+                    result["raw_response"] = parsed
+            except:
+                result["error"] = "Invalid JSON from model"
+                result["raw_response"] = extracted
+            return result
+        except Exception as e:
+            last_error = str(e)
+    return {"error": "Request failed after retries", "details": last_error}
+
 with open("./config/config.yaml") as f:
     cfg = yaml.safe_load(f)
 
-device = cfg["runtime"]["device"]
 dataset = NotesDataset(
     cfg["paths"]["mimic_prepared_csv"],
     cfg["paths"]["notes"],
@@ -34,20 +71,31 @@ dataset = NotesDataset(
 )
 loader = DataLoader(dataset, batch_size=1, shuffle=False)
 
-llama_model = LlamaEncoder(device=device)
 results = []
+for subject_id, study_id, llm_input in loader:
+    question = f"""
+Your task is to output ONLY valid JSON that strictly follows the schema below.
+If your output does not match the schema, FIX IT and output corrected JSON.
 
-with torch.no_grad():
-    for subject_id, study_id, llm_input in loader:
-        embedding = llama_model.encode_text(llm_input)
-        embedding = embedding.cpu().numpy().flatten()
-        row = {"subject_id": subject_id.item(), "study_id": study_id.item(), "Sc": embedding.tolist()}
-        results.append(row)
+SCHEMA:
+{{
+    "risk_level": "string",
+    "score": "number",
+    "issues": ["array of strings"]
+}}
 
-sc_df = pd.DataFrame([{"subject_id": r["subject_id"], "study_id": r["study_id"], **{f"Sc_{i}": v for i,v in enumerate(r["Sc"])}} for r in results])
+INPUT:
+{llm_input[0]}
+"""
+    res = ask_ollama(question)
+    row = {"subject_id": subject_id.item(), "study_id": study_id.item()}
+    row.update(res)
+    results.append(row)
+
+sc_df = pd.DataFrame(results)
 sc_df.to_csv("./results/embedding_sc.csv", index=False)
 
 with open("./results/embedding_sc.json", "w", encoding="utf-8") as f:
     json.dump(results, f, ensure_ascii=False)
 
-print("Finished: embeddings saved to ./results/embedding_sc.csv and embedding_sc.json")
+print("Finished: JSON SC saved to ./results/embedding_sc.csv and embedding_sc.json")
