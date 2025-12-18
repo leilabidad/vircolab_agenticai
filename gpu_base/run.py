@@ -1,29 +1,20 @@
 import yaml
-import torch
 from src.loader import load_tables
-from src.visit_index import build_visit_index
 from src.image_selector import select_images
-from src.note_model import ClinicalNoteEncoder
-from src.dataset_builder import build_dataset
-from src.checkpoint import save_checkpoint
+from src.builder import build_dataset
 
-with open("config/config.yaml") as f:
-    cfg = yaml.safe_load(f)
+def main():
+    with open("config/config.yaml") as f:
+        cfg = yaml.safe_load(f)
+    chexpert, metadata, split = load_tables(cfg)
+    frontal, lateral = select_images(metadata, cfg["paths"]["images"])
+    df = build_dataset(chexpert, split, frontal, lateral, cfg)
+    df.to_pandas().to_csv(cfg["paths"]["output"], index=False)
+    print("DONE")
+    print("Visits:", len(df))
+    print("Frontal:", df["path_img_fr"].notna().sum())
+    print("Lateral:", df["path_img_la"].notna().sum())
+    print("Positive:", int(df["outcome"].sum()))
 
-device = torch.device(cfg["runtime"]["device"])
-
-chexpert, metadata, split = load_tables(cfg)
-visits = build_visit_index(chexpert, split)
-fr, la = select_images(metadata, cfg["paths"]["images"])
-
-encoder = ClinicalNoteEncoder(
-    cfg["model"]["name"],
-    device,
-    cfg["model"]["max_length"]
-)
-
-df, embeddings = build_dataset(visits, metadata, fr, la, encoder, cfg)
-save_checkpoint({"table": df, "embeddings": embeddings}, cfg["paths"]["output"])
-
-print("DONE")
-print("Visits:", len(df))
+if __name__ == "__main__":
+    main()
