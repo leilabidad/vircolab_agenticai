@@ -1,23 +1,22 @@
-runtime:
-  device: cuda
-  batch_size: 16
-  save_every: 500
-  progress_bar: true
-
 paths:
+  mimic_prepared_csv: ../gpu_base/results/final_mimic_visit_level.csv
+  embedding_cm_csv: ../gpu_base/results/embedding_cm.csv
   chexpert: ../mimicdst/mimic-cxr-2.0.0-chexpert.csv.gz
   metadata: ../mimicdst/mimic-cxr-2.0.0-metadata.csv.gz
   split: ../mimicdst/mimic-cxr-2.0.0-split.csv.gz
   images: ../mimicdst/P10_Samples
-  notes: ./data/fake_notes
+  notes: ../mimicdst/P10_ClinicalNotes
   output: ./results/final_mimic_visit_level.csv
 
 
-filtering:
-  require_any:
-    - image
-    - note
+runtime:
+  device: gpu
+  save_every: 500
+  progress_bar: true
 
-model:
-  name: emilyalsentzer/Bio_ClinicalBERT
-  max_length: 256
+clinical_note:
+  mode: real
+  allow_missing: true
+
+filtering:
+  keep_if_missing_all: false
