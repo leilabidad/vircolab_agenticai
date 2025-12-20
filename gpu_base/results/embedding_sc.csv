@@ -1,0 +1,44 @@
+subject_id,study_id,error,details,response_time_seconds,risk_level,score,issues
+10002428,56100138,Request failed after retries,"HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)",,,,
+10001401,58747570,,,18.94,Low,2.0,"['Mild basal atelectasis', 'Hilar congestion']"
+10001851,59664767,,,23.63,low,0.0,"['mild basilar atelectasis', 'minimal biapical pleural thickening', 'calcified and tortuous aorta']"
+10001884,50279568,,,14.97,low,0.0,[]
+10001884,53109065,,,21.25,Low,2.0,"['Mild basilar atelectasis', 'No pleural effusion or pneumothorax']"
+10001884,52060840,,,21.97,low,0.2,"['mild right apical pleural thickening', 'small calcification projecting over the upper chest']"
+10001401,51065211,,,20.44,Low,2.0,"['Mild bibasilar atelectasis', 'Fluid level noted within the stomach']"
+10002430,53254222,,,19.9,Low,2.0,"['Mild scarring in right lower lung', 'Moderately enlarged heart']"
+10002428,57321224,,,21.34,low,0.2,"['hyperinflation', 'kyphotic curvature', 'suspected demineralization']"
+10000980,54935705,Request failed after retries,"HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)",,,,
+10000980,54980801,,,15.49,low,0.0,[]
+10000980,57861150,Request failed after retries,"HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)",,,,
+10000980,59988438,,,20.79,Low,2.0,"['Tiny bilateral pleural effusions', 'Aortic arch calcifications']"
+10001884,53894864,,,14.99,Low,0.0,[]
+10001038,58224503,,,15.01,Low,0.0,[]
+10001122,53957785,,,23.94,low,0.2,"['diffuse demineralization of osseous structures', 'atherosclerotic calcifications throughout thoracic aorta']"
+10001176,53186264,,,18.35,Low,0.2,"['Mild perihilar prominence', 'Minor atelectasis']"
+10001217,52067803,,,19.74,Low,2.0,"['Mild left base atelectasis', 'Slightly tortuous aorta']"
+10000980,54577367,,,22.07,Low,0.2,"['Cardiac silhouette enlargement', 'Aortic calcification', 'Osseous demineralization']"
+10000935,56164612,,,22.6,High,8.0,"['New nodular opacities within both upper lobes, left greater than right', 'Compatible with metastases']"
+10001884,58350684,,,18.4,low,0.2,['mild bibasilar atelectasis']
+10001884,58788638,,,26.83,low,0.2,"['Bibasilar atelectasis', 'Mild pleural parenchymal scarring', 'Mild degenerative changes in bilateral acromioclavicular joints']"
+10001884,59212874,,,21.1,low,0.2,"['mild atelectasis', 'mild biapical pleural-parenchymal scarring']"
+10001884,54369281,,,24.17,low,2.0,"['Mildly enlarged heart size', 'Mild unfolding of the thoracic aorta', 'Mild bibasilar atelectasis']"
+10001884,54579606,,,14.84,low,0.0,[]
+10000032,50414267,,,20.76,low,0.2,"['No focal consolidation', 'No pleural effusion or pneumothorax']"
+10000032,53189527,,,14.93,low,0.0,[]
+10002013,55941092,,,15.17,low,0.0,[]
+10002131,52823782,,,22.07,High,8.0,"['Bilateral pleural effusions', 'Limited evaluation due to effusions', 'No definite focal consolidation identified']"
+10002157,56373033,,,15.03,low,0.0,[]
+10002177,50520012,,,14.81,Low,0.0,[]
+10000764,57375967,,,23.62,High,8.0,"['Focal consolidation at the left lung base, possibly representing aspiration or pneumonia.', 'Central vascular engorgement.']"
+10000898,50771383,,,14.94,low,0.0,[]
+10000898,54205396,,,22.32,low,0.2,"['persistent thoracic kyphosis', 'mild wedging of a mid thoracic vertebral body']"
+10000935,51178377,,,26.54,High,8.0,"['Increasing left lung opacification', 'Possible pneumonia superimposed on metastatic disease', 'Potential lymphangitic pattern of metastatic spread']"
+10001884,56349965,,,19.73,Low,2.0,"['Mild bibasilar atelectasis', 'Heart size mildly enlarged']"
+10001884,57166219,,,14.87,low,0.0,[]
+10001884,57839849,,,14.82,Low,0.0,[]
+10001884,54828594,Request failed after retries,"HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=30)",,,,
+10001884,55333410,,,16.29,Low,0.0,[]
+10001884,59635781,,,14.91,Low,0.0,[]
+10002013,52535468,,,21.82,low,0.0,"['persistent blunting of left costophrenic angle', 'underlying scarring or pleural thickening']"
+10002013,55608920,,,14.39,Low,0.0,[]
