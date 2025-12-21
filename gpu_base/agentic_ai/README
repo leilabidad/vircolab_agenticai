@@ -1,0 +1,25 @@
+# vircolab_agenticai
+
+## Structure
+
+
+```
+
+agentic_ai/
+├── __init__.py
+├── config.yaml
+├── pipeline.py
+├── vision/
+│   ├── __init__.py
+│   ├── model.py
+│   ├── dataset.py
+│   └── utils.py
+├── llm/
+│   ├── __init__.py
+│   └── compute_sc.py
+├── dcs/
+│   ├── __init__.py
+│   └── compute_rf.py
+└── examples/
+    └── run_example.py
+```
