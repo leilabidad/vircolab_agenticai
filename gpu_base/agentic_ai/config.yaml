@@ -1,0 +1,34 @@
+data:
+  batch_size: 4
+  label_columns:
+    - Cm_0
+    - Cm_1
+    - Cm_2
+    - Cm_3
+    - Cm_4
+    - Cm_5
+    - Cm_6
+    - Cm_7
+    - Cm_8
+    - Cm_9
+    - Cm_10
+    - Cm_11
+    - Cm_12
+paths:
+  csv: "./data/patient_metadata.csv"
+  checkpoint: "../gpu_base/results/swin_dualview.pt"
+  cm_output: "./results/embedding_cm.csv"
+  sc_output: "./results/embedding_sc.csv"
+  rf_output: "./results/patient_rf.csv"
+  dcs_weights: "../gpu_base/results/dcs_weights.json"
+  clinical_notes_dir: "./data/notes"
+training:
+  epochs: 5
+  lr: 1e-4
+model:
+  swin_model_name: "swin_base_patch4_window7_224"
+  pretrained: true
+llm:
+  url: "http://localhost:11434/api/generate"
+  model: "llama3.1:70b"
+  temperature: 0

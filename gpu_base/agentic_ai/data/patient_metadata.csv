@@ -1,0 +1,2 @@
+subject_id,study_id,frontal_image,lateral_image,clinical_note
+10001401,51065211,./frontal_images/fr1.jpg,./lateral_images/la1.jpg,./notes/s1.tx
