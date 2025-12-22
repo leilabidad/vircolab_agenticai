@@ -9,8 +9,9 @@ agentic_ai/
 ├── dcs/
 │   ├── __init__.py
 │   └── compute_rf.py
-└── examples/
-    └── run_all_patients_batch_gpu.py
+├── agents/
+│   ├── qcs_agent.py
+│   └── decision_manager.py
 data/
 ├── patient_metadata.csv
 ├── frontal_images/

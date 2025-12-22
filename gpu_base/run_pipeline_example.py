@@ -22,8 +22,15 @@ with open("../gpu_base/results/dcs_weights.json") as f:
 
 results = run_pipeline_batch(frontal_paths, lateral_paths, llm_text_batch, dcs_weights)
 
-for i, r in enumerate(results):
-    print(f"Patient {i+1}:")
-    #print("Cm_vector:", r["Cm_vector"])
-    print("Sc:", r["Sc"])
-    print("Rf:", r["Rf"])
+for r in results:
+    print(f"Patient {r['patient_index'] + 1}:")
+    print(f"Predicted Label: {r['pred_label']}")
+    print(f"Cm: {r['Cm']:.4f}")
+    print(f"Sc: {r['Sc']:.4f}")
+    print(f"Rf: {r['Rf']:.4f}")
+    print(f"QC Passed: {r['QC_flag']}")
+    if r['issues']:
+        print(f"Issues: {r['issues']}")
+    print("-" * 40)
+
+print(f"Final output saved to './results/final_output.json'")

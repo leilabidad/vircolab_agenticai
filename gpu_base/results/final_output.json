@@ -1,0 +1,14 @@
+[
+  {
+    "patient_index": 0,
+    "pred_label": "Medium Risk",
+    "Cm": -0.019789742305874825,
+    "Sc": 0.20000000298023224,
+    "Rf": 0.5283411741256714,
+    "QC_flag": false,
+    "issues": [
+      "cirrhosis",
+      "old left rib fractures"
+    ]
+  }
+]
