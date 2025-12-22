@@ -36,17 +36,24 @@ def load_image(path):
     img = Image.open(path).convert("RGB")
     return transform(img).unsqueeze(0).to(device)
 
+
 def extract_cm_batch(frontal_paths, lateral_paths):
     cm_list = []
     for fr_path, la_path in zip(frontal_paths, lateral_paths):
         fr_img = load_image(fr_path)
         la_img = load_image(la_path)
+
+        imgs = torch.cat([fr_img, la_img], dim=0)
+
         with torch.no_grad():
-            ef = backbone(fr_img)
-            el = backbone(la_img)
-            cm_list.append((ef + el) / 2)
-        del fr_img, la_img, ef, el
+            feats = backbone(imgs)
+            cm = feats.mean(dim=0, keepdim=True)
+
+        cm_list.append(cm.detach())
+
+        del fr_img, la_img, imgs, feats, cm
         torch.cuda.empty_cache()
+
     return torch.cat(cm_list, dim=0)
 
 
