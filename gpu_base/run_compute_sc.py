@@ -84,6 +84,14 @@ def show_time():
           "Time:", now.strftime("%H:%M:%S"))
 
 
+few_shot_block = """
+Input: Patient has high blood pressure and diabetes.
+Output: {"risk_level":"high","score":0.9,"issues":["high blood pressure","diabetes"]}
+
+Input: Patient is healthy with no chronic conditions.
+Output: {"risk_level":"low","score":0.1,"issues":[]}
+"""
+
 show_time()
 
 with open("./config/config.yaml") as f:
@@ -100,7 +108,7 @@ results = []
 
 for subject_id, study_id, text in loader:
     prompt = f"""
-Output ONLY valid JSON following the schema below.
+You must output ONLY valid JSON following the schema.
 
 SCHEMA:
 {{
@@ -108,6 +116,9 @@ SCHEMA:
   "score": "number",
   "issues": ["array of strings"]
 }}
+
+EXAMPLES:
+{few_shot_block}
 
 INPUT:
 {text[0]}
