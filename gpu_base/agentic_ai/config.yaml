@@ -22,6 +22,8 @@ paths:
   rf_output: "./results/patient_rf.csv"
   dcs_weights: "../gpu_base/results/dcs_weights.json"
   clinical_notes_dir: "./data/notes"
+  trace_dir: "./agentic_ai/memory/traces"
+
 training:
   epochs: 5
   lr: 1e-4

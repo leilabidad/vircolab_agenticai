@@ -1,21 +1,16 @@
 ```
 agentic_ai/
-├── __init__.py
-├── config.yaml
 ├── pipeline.py
-├── llm/
-│   ├── __init__.py
-│   └── compute_sc.py
-├── dcs/
-│   ├── __init__.py
-│   └── compute_rf.py
+├── memory/
+│   ├── trace_store.py
+│   └── replay_buffer.py
+├── uncertainty/
+│   └── uncertainty_estimator.py
 ├── agents/
 │   ├── qcs_agent.py
-│   └── decision_manager.py
-data/
-├── patient_metadata.csv
-├── frontal_images/
-├── lateral_images/
-└── notes/
+│   ├── decision_manager.py
+│   └── adaptive_qc_agent.py
+└── feedback/
+    └── feedback_loop.py
 
 ```
