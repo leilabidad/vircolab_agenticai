@@ -30,9 +30,16 @@ cm_embeds = torch.tensor(cm_df[cm_cols].values, dtype=torch.float32)
 cm_proj = cm_embeds.mean(dim=1).numpy().reshape(-1, 1)
 
 def parse_embedding(s):
+    if pd.isna(s):
+        return [0.0]
     if isinstance(s, str):
         return [float(x) for x in s.strip("[]").split(",")]
-    return list(s)
+    elif isinstance(s, (list, tuple)):
+        return list(s)
+    elif isinstance(s, (float, int)):
+        return [float(s)]
+    else:
+        raise ValueError(f"Cannot parse embedding: {s}")
 
 sc_embeds = torch.tensor(sc_df["sc_embedding"].apply(parse_embedding).tolist(), dtype=torch.float32)
 sc_proj = sc_embeds.mean(dim=1).numpy().reshape(-1, 1)
