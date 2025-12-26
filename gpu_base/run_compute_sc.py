@@ -139,16 +139,7 @@ INPUT:
         # اضافه کردن batch به CSV مستقیم
         df_batch = pd.DataFrame(batch)
         df_batch.to_csv(output_csv, mode='a', header=False, index=False)
-        # آپدیت JSON
-        if output_json.exists():
-            with open(output_json, "r+", encoding="utf-8") as f:
-                data = json.load(f)
-                data.extend(batch)
-                f.seek(0)
-                json.dump(data, f, ensure_ascii=False)
-        else:
-            with open(output_json, "w", encoding="utf-8") as f:
-                json.dump(batch, f, ensure_ascii=False)
+
         batch.clear()
         print("=== 10 rows processed! ===")
         show_time()
@@ -157,15 +148,7 @@ INPUT:
 if batch:
     df_batch = pd.DataFrame(batch)
     df_batch.to_csv(output_csv, mode='a', header=False, index=False)
-    if output_json.exists():
-        with open(output_json, "r+", encoding="utf-8") as f:
-            data = json.load(f)
-            data.extend(batch)
-            f.seek(0)
-            json.dump(data, f, ensure_ascii=False)
-    else:
-        with open(output_json, "w", encoding="utf-8") as f:
-            json.dump(batch, f, ensure_ascii=False)
+
     print(f"=== {len(batch)} remaining rows processed! ===")
     show_time()
 

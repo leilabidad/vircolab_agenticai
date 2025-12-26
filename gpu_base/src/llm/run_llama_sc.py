@@ -47,7 +47,3 @@ with torch.no_grad():
 sc_df = pd.DataFrame([{"subject_id": r["subject_id"], "study_id": r["study_id"], **{f"Sc_{i}": v for i,v in enumerate(r["Sc"])}} for r in results])
 sc_df.to_csv("./results/embedding_sc.csv", index=False)
 
-with open("./results/embedding_sc.json", "w", encoding="utf-8") as f:
-    json.dump(results, f, ensure_ascii=False)
-
-print("Finished: embeddings saved to ./results/embedding_sc.csv and embedding_sc.json")
