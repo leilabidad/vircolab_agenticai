@@ -1,32 +1,25 @@
-import yaml
-from src.loader import load_tables
-from src.image_selector import select_images
-from src.builder import build_dataset
+import pandas as pd
 
-def main():
-    with open("config/config.yaml") as f:
-        cfg = yaml.safe_load(f)
-    chexpert, metadata, split = load_tables(cfg)
-    frontal, lateral = select_images(metadata, cfg["paths"]["images"])
-    df = build_dataset(chexpert, split, frontal, lateral, cfg)
-    
-    batch_size = 10
-    total_saved = 0
-    
-    for start in range(0, len(df), batch_size):
-        end = start + batch_size
-        batch_df = df.iloc[start:end]
-        mode = 'a' if total_saved > 0 else 'w'
-        header = False if total_saved > 0 else True
-        batch_df.to_pandas().to_csv(cfg["paths"]["output"], mode=mode, header=header, index=False)
-        total_saved += len(batch_df)
-        print(total_saved)
+patients = pd.read_csv("patients.csv.gz", usecols=['subject_id','dob','gender'])
+admissions = pd.read_csv("admissions.csv.gz", usecols=['subject_id','hadm_id','hospital_expire_flag'])
+cxr = pd.read_csv("mimic-cxr-2.0.0-metadata.csv.gz", usecols=['subject_id','hadm_id','study_id','StudyDate','StudyTime'])
 
-    print("DONE")
-    print("Visits:", len(df))
-    print("Frontal:", df["path_img_fr"].notna().sum())
-    print("Lateral:", df["path_img_la"].notna().sum())
-    print("Positive:", int(df["outcome"].sum()))
+patients['dob'] = pd.to_datetime(patients['dob'])
+cxr['study_datetime'] = pd.to_datetime(
+    cxr['StudyDate'].astype(str) + cxr['StudyTime'].astype(str).str.zfill(6),
+    format="%Y%m%d%H%M%S",
+    errors="coerce"
+)
 
-if __name__ == "__main__":
-    main()
+base = admissions.merge(patients, on='subject_id', how='left')
+base['age'] = 2025 - base['dob'].dt.year
+base = base[(base['age'] >= 0) & (base['age'] <= 120)]
+base['outcome'] = base['hospital_expire_flag']
+
+final = cxr.merge(base[['subject_id','hadm_id','age','gender','outcome']], on=['subject_id','hadm_id'], how='left')
+final = final[['study_id','subject_id','hadm_id','age','gender','outcome']]
+final = final.dropna(subset=['study_id','subject_id'])
+final = final.drop_duplicates(subset='study_id')
+final['gender'] = final['gender'].map({'M':1,'F':0})
+
+final.to_csv("mimic_llm_study_level_ultralight.csv", index=False)
