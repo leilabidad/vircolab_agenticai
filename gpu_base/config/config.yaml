@@ -6,7 +6,11 @@ paths:
   split: ../mimicdst/mimic-cxr-2.0.0-split.csv.gz
   images: ../mimicdst/P10_Samples
   notes: ../mimicdst/P10_ClinicalNotes
+  patients_features: ../mimicdst/mimic-dst-outcome/patients.csv.gz
+  admissions_features: ../mimicdst/mimic-dst-outcome/admissions.csv.gz
+  output_dir: ../gpu_base/results/
   output: ./results/final_mimic_visit_level.csv
+
 
 
 runtime:
