@@ -1,0 +1,32 @@
+import yaml
+from src.loader import load_tables
+from src.image_selector import select_images
+from src.builder import build_dataset
+
+def main():
+    with open("config/config.yaml") as f:
+        cfg = yaml.safe_load(f)
+    chexpert, metadata, split = load_tables(cfg)
+    frontal, lateral = select_images(metadata, cfg["paths"]["images"])
+    df = build_dataset(chexpert, split, frontal, lateral, cfg)
+    
+    batch_size = 10
+    total_saved = 0
+    
+    for start in range(0, len(df), batch_size):
+        end = start + batch_size
+        batch_df = df.iloc[start:end]
+        mode = 'a' if total_saved > 0 else 'w'
+        header = False if total_saved > 0 else True
+        batch_df.to_pandas().to_csv(cfg["paths"]["output"], mode=mode, header=header, index=False)
+        total_saved += len(batch_df)
+        print(total_saved)
+
+    print("DONE")
+    print("Visits:", len(df))
+    print("Frontal:", df["path_img_fr"].notna().sum())
+    print("Lateral:", df["path_img_la"].notna().sum())
+    print("Positive:", int(df["outcome"].sum()))
+
+if __name__ == "__main__":
+    main()
