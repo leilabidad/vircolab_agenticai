@@ -11,6 +11,10 @@ paths:
   output_dir: ../gpu_base/results/
   output: ./results/final_mimic_visit_level.csv
 
+  edstays: ../mimicdst/mimic-iv-ed-2.2/edstays.csv.gz
+  triage: ../mimicdst/mimic-iv-ed-2.2/triage.csv.gz
+  vitalsign: ../mimicdst/mimic-iv-ed-2.2/vitalsign.csv.gz
+  pyxis: ../mimicdst/mimic-iv-ed-2.2/pyxis.csv.gz
 
 
 runtime:

@@ -9,7 +9,9 @@ def main():
     chexpert, metadata, split = load_tables(cfg)
     frontal, lateral = select_images(metadata, cfg["paths"]["images"])
     df = build_dataset(chexpert, split, frontal, lateral, cfg)
-    df.to_pandas().to_csv(cfg["paths"]["output"], index=False)
+    #df.to_pandas().to_csv(cfg["paths"]["output"], index=False)
+    df.to_csv(cfg["paths"]["output"], index=False)
+
     print("DONE")
     print("Visits:", len(df))
     print("Frontal:", df["path_img_fr"].notna().sum())
