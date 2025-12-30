@@ -1,25 +1,198 @@
 import pandas as pd
+from pathlib import Path
+import requests
+import json
+from torch.utils.data import Dataset, DataLoader
+import time
+import yaml
+from datetime import datetime
 
-patients = pd.read_csv("patients.csv.gz", usecols=['subject_id','dob','gender'])
-admissions = pd.read_csv("admissions.csv.gz", usecols=['subject_id','hadm_id','hospital_expire_flag'])
-cxr = pd.read_csv("mimic-cxr-2.0.0-metadata.csv.gz", usecols=['subject_id','hadm_id','study_id','StudyDate','StudyTime'])
+class NotesDataset(Dataset):
+    def __init__(self, csv_path, text_col):
+        self.df = pd.read_csv(csv_path)
+        self.text_col = text_col
 
-patients['dob'] = pd.to_datetime(patients['dob'])
-cxr['study_datetime'] = pd.to_datetime(
-    cxr['StudyDate'].astype(str) + cxr['StudyTime'].astype(str).str.zfill(6),
-    format="%Y%m%d%H%M%S",
-    errors="coerce"
-)
+    def __len__(self):
+        return len(self.df)
 
-base = admissions.merge(patients, on='subject_id', how='left')
-base['age'] = 2025 - base['dob'].dt.year
-base = base[(base['age'] >= 0) & (base['age'] <= 120)]
-base['outcome'] = base['hospital_expire_flag']
+    def __getitem__(self, idx):
+        row = self.df.iloc[idx].to_dict()
+        with open(row[self.text_col], "r", encoding="utf-8") as f:
+            row["clinical_note_text"] = f.read()
+        return row
 
-final = cxr.merge(base[['subject_id','hadm_id','age','gender','outcome']], on=['subject_id','hadm_id'], how='left')
-final = final[['study_id','subject_id','hadm_id','age','gender','outcome']]
-final = final.dropna(subset=['study_id','subject_id'])
-final = final.drop_duplicates(subset='study_id')
-final['gender'] = final['gender'].map({'M':1,'F':0})
+def collate_fn(batch):
+    return batch
 
-final.to_csv("mimic_llm_study_level_ultralight.csv", index=False)
+def extract_json(text):
+    if not isinstance(text, str):
+        return None
+    s = text.find("{")
+    e = text.rfind("}")
+    if s == -1 or e == -1 or e <= s:
+        return None
+    return text[s:e+1]
+
+def validate_schema(obj):
+    if not isinstance(obj, dict):
+        return None
+    if obj.get("risk_level") not in {"low", "medium", "high"}:
+        return None
+    try:
+        score = float(obj.get("score"))
+    except:
+        return None
+    issues = obj.get("issues")
+    if not isinstance(issues, list):
+        return None
+    return {
+        "risk_level": obj["risk_level"],
+        "score": score,
+        "issues": [str(i) for i in issues]
+    }
+
+def ask_ollama(prompt, retries=3, timeout=60):
+    url = "http://localhost:11434/api/generate"
+    payload = {
+        "model": "llama3.1:70b",
+        "prompt": prompt,
+        "stream": False,
+        "options": {"temperature": 0}
+    }
+    last_error = None
+    for _ in range(retries):
+        try:
+            t0 = time.time()
+            r = requests.post(url, json=payload, timeout=timeout)
+            elapsed = round(time.time() - t0, 2)
+            raw = r.json().get("response", "")
+            extracted = extract_json(raw)
+            if extracted:
+                parsed = json.loads(extracted)
+                validated = validate_schema(parsed)
+                if validated:
+                    validated["response_time_sec"] = elapsed
+                    return validated
+            last_error = "Invalid schema"
+        except Exception as e:
+            last_error = str(e)
+    return {
+        "risk_level": None,
+        "score": None,
+        "issues": [],
+        "response_time_sec": None,
+        "error": last_error
+    }
+
+def get_llm_embedding(text, timeout=60):
+    url = "http://localhost:11434/api/embeddings"
+    payload = {"model": "llama3.1:70b", "prompt": text}
+    r = requests.post(url, json=payload, timeout=timeout)
+    return r.json().get("embedding", [])
+
+def build_fusion_text(row):
+    return f"""
+Age: {row.get('age')}
+Gender: {row.get('gender')}
+Temperature: {row.get('temperature')}
+HeartRate: {row.get('heartrate')}
+SBP: {row.get('sbp')}
+DBP: {row.get('dbp')}
+RespRate: {row.get('resprate')}
+O2Sat: {row.get('o2sat')}
+Pain: {row.get('pain')}
+Acuity: {row.get('acuity')}
+ChiefComplaint: {row.get('chiefcomplaint')}
+Atelectasis: {row.get('Atelectasis')}
+Cardiomegaly: {row.get('Cardiomegaly')}
+Consolidation: {row.get('Consolidation')}
+Edema: {row.get('Edema')}
+LungOpacity: {row.get('Lung Opacity')}
+PleuralEffusion: {row.get('Pleural Effusion')}
+Pneumonia: {row.get('Pneumonia')}
+Pneumothorax: {row.get('Pneumothorax')}
+SupportDevices: {row.get('Support Devices')}
+
+ClinicalNote:
+{row.get('clinical_note_text')}
+"""
+
+def show_time():
+    print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+few_shot_block = """
+Input: Patient has high blood pressure and diabetes.
+Output: {"risk_level":"high","score":0.9,"issues":["high blood pressure","diabetes"]}
+
+Input: Patient is healthy with no chronic conditions.
+Output: {"risk_level":"low","score":0.1,"issues":[]}
+"""
+
+with open("./config/config.yaml") as f:
+    cfg = yaml.safe_load(f)
+
+dataset = NotesDataset(cfg["paths"]["mimic_prepared_csv"], "path_clinical_note")
+loader = DataLoader(dataset, batch_size=1, shuffle=False, collate_fn=collate_fn)
+
+output_csv = Path("./results/embedding_sc.csv")
+output_csv.parent.mkdir(parents=True, exist_ok=True)
+
+if not output_csv.exists():
+    with open(output_csv, "w", encoding="utf-8") as f:
+        f.write("subject_id,study_id,sc_embedding,risk_level,score,issues,response_time_sec\n")
+
+processed = set()
+start_time = time.time()
+batch = []
+
+for rows in loader:
+    row = rows[0]
+    key = (row["subject_id"], row["study_id"])
+    if key in processed:
+        continue
+
+    fusion_text = build_fusion_text(row)
+
+    prompt = f"""
+You must output ONLY valid JSON.
+
+Schema:
+{{
+  "risk_level": "low | medium | high",
+  "score": number,
+  "issues": array
+}}
+
+Examples:
+{few_shot_block}
+
+Input:
+{fusion_text}
+"""
+
+    sc_struct = ask_ollama(prompt)
+    sc_embed = get_llm_embedding(fusion_text)
+
+    out = {
+        "subject_id": row["subject_id"],
+        "study_id": row["study_id"],
+        "sc_embedding": json.dumps(sc_embed),
+        "risk_level": sc_struct.get("risk_level"),
+        "score": sc_struct.get("score"),
+        "issues": json.dumps(sc_struct.get("issues", [])),
+        "response_time_sec": sc_struct.get("response_time_sec")
+    }
+
+    batch.append(out)
+    processed.add(key)
+
+    if len(batch) == 10:
+        pd.DataFrame(batch).to_csv(output_csv, mode="a", header=False, index=False)
+        batch.clear()
+        show_time()
+
+if batch:
+    pd.DataFrame(batch).to_csv(output_csv, mode="a", header=False, index=False)
+    show_time()
+
+print("Elapsed seconds:", round(time.time() - start_time, 2))
