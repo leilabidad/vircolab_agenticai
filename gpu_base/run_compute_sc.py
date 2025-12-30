@@ -16,21 +16,50 @@ class NotesDataset(Dataset):
         return len(self.df)
 
     def __getitem__(self, idx):
-        row = self.df.iloc[idx]
+        row = self.df.iloc[idx].to_dict()
         with open(row[self.text_col], "r", encoding="utf-8") as f:
-            text = f.read()
-        return row["subject_id"], row["study_id"], text
+            row["clinical_note_text"] = f.read()
+        return row
+
+def collate_fn(batch):
+    return batch
 
 def extract_json(text):
-    start = text.find("{")
-    end = text.rfind("}")
-    if start == -1 or end == -1:
+    if not isinstance(text, str):
         return None
-    return text[start:end + 1]
+    s = text.find("{")
+    e = text.rfind("}")
+    if s == -1 or e == -1 or e <= s:
+        return None
+    return text[s:e+1]
+
+def validate_schema(obj):
+    if not isinstance(obj, dict):
+        return None
+    if obj.get("risk_level") not in {"low", "medium", "high"}:
+        return None
+    try:
+        score = float(obj.get("score"))
+    except:
+        return None
+    issues = obj.get("issues")
+    if not isinstance(issues, list):
+        return None
+    return {
+        "risk_level": obj["risk_level"],
+        "score": score,
+        "issues": [str(i) for i in issues]
+    }
 
 def ask_ollama(prompt, retries=3, timeout=60):
     url = "http://localhost:11434/api/generate"
-    payload = {"model": "llama3.1:70b","prompt": prompt,"stream": False,"options": {"temperature": 0}}
+    payload = {
+        "model": "llama3.1:70b",
+        "prompt": prompt,
+        "stream": False,
+        "options": {"temperature": 0}
+    }
+    last_error = None
     for _ in range(retries):
         try:
             t0 = time.time()
@@ -38,31 +67,58 @@ def ask_ollama(prompt, retries=3, timeout=60):
             elapsed = round(time.time() - t0, 2)
             raw = r.json().get("response", "")
             extracted = extract_json(raw)
-            result = {"response_time_sec": elapsed}
             if extracted:
-                try:
-                    parsed = json.loads(extracted)
-                    result.update(parsed)
-                except:
-                    result["error"] = "Invalid JSON"
-                    result["raw_response"] = extracted
-            else:
-                result["error"] = "No JSON found"
-                result["raw_response"] = raw
-            return result
+                parsed = json.loads(extracted)
+                validated = validate_schema(parsed)
+                if validated:
+                    validated["response_time_sec"] = elapsed
+                    return validated
+            last_error = "Invalid schema"
         except Exception as e:
             last_error = str(e)
-    return {"error": "LLM request failed", "details": last_error}
+    return {
+        "risk_level": None,
+        "score": None,
+        "issues": [],
+        "response_time_sec": None,
+        "error": last_error
+    }
 
 def get_llm_embedding(text, timeout=60):
     url = "http://localhost:11434/api/embeddings"
-    payload = {"model": "llama3.1:70b","prompt": text}
+    payload = {"model": "llama3.1:70b", "prompt": text}
     r = requests.post(url, json=payload, timeout=timeout)
-    return r.json()["embedding"]
+    return r.json().get("embedding", [])
+
+def build_fusion_text(row):
+    return f"""
+Age: {row.get('age')}
+Gender: {row.get('gender')}
+Temperature: {row.get('temperature')}
+HeartRate: {row.get('heartrate')}
+SBP: {row.get('sbp')}
+DBP: {row.get('dbp')}
+RespRate: {row.get('resprate')}
+O2Sat: {row.get('o2sat')}
+Pain: {row.get('pain')}
+Acuity: {row.get('acuity')}
+ChiefComplaint: {row.get('chiefcomplaint')}
+Atelectasis: {row.get('Atelectasis')}
+Cardiomegaly: {row.get('Cardiomegaly')}
+Consolidation: {row.get('Consolidation')}
+Edema: {row.get('Edema')}
+LungOpacity: {row.get('Lung Opacity')}
+PleuralEffusion: {row.get('Pleural Effusion')}
+Pneumonia: {row.get('Pneumonia')}
+Pneumothorax: {row.get('Pneumothorax')}
+SupportDevices: {row.get('Support Devices')}
+
+ClinicalNote:
+{row.get('clinical_note_text')}
+"""
 
 def show_time():
-    now = datetime.now()
-    print("Date:", now.strftime("%Y-%m-%d"), "Time:", now.strftime("%H:%M:%S"))
+    print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 few_shot_block = """
 Input: Patient has high blood pressure and diabetes.
@@ -72,85 +128,71 @@ Input: Patient is healthy with no chronic conditions.
 Output: {"risk_level":"low","score":0.1,"issues":[]}
 """
 
-show_time()
 with open("./config/config.yaml") as f:
     cfg = yaml.safe_load(f)
 
 dataset = NotesDataset(cfg["paths"]["mimic_prepared_csv"], "path_clinical_note")
-loader = DataLoader(dataset, batch_size=1, shuffle=False)
+loader = DataLoader(dataset, batch_size=1, shuffle=False, collate_fn=collate_fn)
 
 output_csv = Path("./results/embedding_sc.csv")
-output_json = Path("./results/embedding_sc.json")
 output_csv.parent.mkdir(parents=True, exist_ok=True)
 
-# فایل CSV و JSON آماده می‌کنیم
 if not output_csv.exists():
-    output_csv.touch()
     with open(output_csv, "w", encoding="utf-8") as f:
-        f.write("subject_id,study_id,sc_embedding,risk_level,score,issues\n")
+        f.write("subject_id,study_id,sc_embedding,risk_level,score,issues,response_time_sec\n")
 
-if output_json.exists():
-    with open(output_json, "r", encoding="utf-8") as f:
-        try:
-            processed_data = json.load(f)
-            processed_set = set((d["subject_id"], d["study_id"]) for d in processed_data)
-        except:
-            processed_set = set()
-else:
-    processed_set = set()
-
+processed = set()
 start_time = time.time()
 batch = []
 
-for subject_id, study_id, text in loader:
-    key = (subject_id.item(), study_id.item())
-    if key in processed_set:
+for rows in loader:
+    row = rows[0]
+    key = (row["subject_id"], row["study_id"])
+    if key in processed:
         continue
 
-    prompt = f"""
-You must output ONLY valid JSON following the schema.
+    fusion_text = build_fusion_text(row)
 
-SCHEMA:
+    prompt = f"""
+You must output ONLY valid JSON.
+
+Schema:
 {{
-  "risk_level": "string",
-  "score": "number",
-  "issues": ["array of strings"]
+  "risk_level": "low | medium | high",
+  "score": number,
+  "issues": array
 }}
 
-EXAMPLES:
+Examples:
 {few_shot_block}
 
-INPUT:
-{text[0]}
+Input:
+{fusion_text}
 """
-    sc_struct = ask_ollama(prompt)
-    sc_embed = get_llm_embedding(text[0])
 
-    row = {
-        "subject_id": subject_id.item(),
-        "study_id": study_id.item(),
-        "sc_embedding": sc_embed
+    sc_struct = ask_ollama(prompt)
+    sc_embed = get_llm_embedding(fusion_text)
+
+    out = {
+        "subject_id": row["subject_id"],
+        "study_id": row["study_id"],
+        "sc_embedding": json.dumps(sc_embed),
+        "risk_level": sc_struct.get("risk_level"),
+        "score": sc_struct.get("score"),
+        "issues": json.dumps(sc_struct.get("issues", [])),
+        "response_time_sec": sc_struct.get("response_time_sec")
     }
-    row.update(sc_struct)
-    batch.append(row)
-    processed_set.add(key)
+
+    batch.append(out)
+    processed.add(key)
 
     if len(batch) == 10:
-        # اضافه کردن batch به CSV مستقیم
-        df_batch = pd.DataFrame(batch)
-        df_batch.to_csv(output_csv, mode='a', header=False, index=False)
-
+        pd.DataFrame(batch).to_csv(output_csv, mode="a", header=False, index=False)
         batch.clear()
-        print("=== 10 rows processed! ===")
         show_time()
 
-# باقی‌مانده
 if batch:
-    df_batch = pd.DataFrame(batch)
-    df_batch.to_csv(output_csv, mode='a', header=False, index=False)
-
-    print(f"=== {len(batch)} remaining rows processed! ===")
+    pd.DataFrame(batch).to_csv(output_csv, mode="a", header=False, index=False)
     show_time()
 
-elapsed = round(time.time() - start_time, 2)
-print(f"Total elapsed time: {elapsed} seconds")
+print("Elapsed seconds:", round(time.time() - start_time, 2))
