@@ -1,76 +1,66 @@
-import cudf
-import pandas as pd
-from .note_generator import build_note_gpu, load_note_gpu
 from .features.demographic import build_demographic_features
 from .features.ed import build_ed_features
+from .features.chexpert import build_chexpert_features
+from .features.split import build_split_features
+from .features.metadata import build_metadata_features
+from .note_generator import load_note_gpu
+import pandas as pd
+from pathlib import Path
+import time
 
-LABELS = [
-    "Atelectasis","Cardiomegaly","Consolidation","Edema",
-    "Enlarged Cardiomediastinum","Fracture","Lung Lesion",
-    "Lung Opacity","Pleural Effusion","Pleural Other",
-    "Pneumonia","Pneumothorax","Support Devices"
-]
+def build_dataset(cfg, chunk_size=200):
+    start_time = time.time()
 
-def _cleanup_columns(df):
-    for col in list(df.columns):
-        if col.endswith("_x") or col.endswith("_y"):
-            base = col[:-2]
-            if base not in df.columns:
-                df.rename(columns={col: base}, inplace=True)
-            else:
-                df.drop(columns=[col], inplace=True)
-    return df.loc[:, ~df.columns.duplicated()]
-
-def merge_in_chunks(df, other, on, how="left", chunk_size=5000):
-    out = []
-    for i in range(0, len(df), chunk_size):
-        part = df.iloc[i:i+chunk_size]
-        out.append(part.merge(other, on=on, how=how))
-        print(f"############################## Merged chunk ordinary {i} to {i+chunk_size} / {len(df)}")
-    return pd.concat(out, ignore_index=True)
-
-def build_notes_in_chunks(df, cfg, chunk_size=2000):
-    notes = []
-    for i in range(0, len(df), chunk_size):
-        part = df.iloc[i:i+chunk_size]
-        # if cfg["clinical_note"]["mode"] == "fake":
-        #     notes.extend(build_note_gpu(part, LABELS, cfg))
-        # else:
-        #     notes.extend(load_note_gpu(part, cfg["paths"]["notes"]))
-        notes.extend(load_note_gpu(part, cfg["paths"]["notes"]))
-        print(f"############################## Merged chunk NOTES {i} to {i+chunk_size} / {len(df)}")
-    return notes
-
-def build_dataset(chexpert, split, frontal, lateral, cfg):
     demographic = build_demographic_features(cfg)
     ed = build_ed_features(cfg)
     mimic = demographic.merge(ed, on="subject_id", how="left")
 
-    chexpert_gpu = cudf.from_pandas(chexpert)
-    split_gpu = cudf.from_pandas(split)
+    chexpert = build_chexpert_features(cfg)
+    split = build_split_features(cfg)
+    metadata = build_metadata_features(cfg)
 
-    df = chexpert_gpu[["subject_id","study_id"] + LABELS]
-    df = df.merge(split_gpu[["study_id","split"]], on="study_id", how="left")
-    df = df.merge(frontal, on="study_id", how="left")
-    df = df.merge(lateral, on="study_id", how="left")
+    # فقط study_id هایی که عکس دارن
+    valid_studies = metadata["study_id"].unique()
 
-    df = df.to_pandas()
-    df = merge_in_chunks(df, mimic, on="subject_id", how="left")
-    df = _cleanup_columns(df)
+    chexpert = chexpert[chexpert["study_id"].isin(valid_studies)]
+    split = split[split["study_id"].isin(valid_studies)]
+    mimic = mimic[mimic["study_id"].isin(valid_studies)]
 
-    df["path_clinical_note"] = build_notes_in_chunks(df, cfg)
-    df["outcome"] = df["outcome"].fillna(0).astype(int)
+    df_all = (
+        chexpert
+        .merge(split, on="study_id", how="left")
+        .merge(metadata, on="study_id", how="left")
+        .merge(mimic, on="subject_id", how="left")
+    )
 
-    for col in ["path_img_fr","path_img_la"]:
-        if col not in df.columns:
-            df[col] = None
+    if "study_id_x" in df_all.columns:
+        df_all.rename(columns={"study_id_x": "study_id"}, inplace=True)
+    if "study_id_y" in df_all.columns:
+        df_all.drop(columns=["study_id_y"], inplace=True)
 
-    if not cfg["filtering"]["keep_if_missing_all"]:
-        cols = ["path_clinical_note","path_img_fr","path_img_la"]
-        mask = (
-            df[cols].notna().all(axis=1) &
-            df[cols].astype(str).apply(lambda c: c.str.strip() != "").all(axis=1)
-        )
-        df = df[mask]
+    columns_to_write = df_all.columns.tolist()
 
-    return df.drop_duplicates("study_id")
+    print(f"[INFO] Columns in dataset: {df_all.columns.tolist()}")
+    proceed = input("Do you want to continue with these columns? (y/n): ")
+    if proceed.lower() != "y":
+        raise SystemExit("Aborted by user")
+
+    df_all["path_clinical_note"] = load_note_gpu(df_all[["subject_id", "study_id"]], cfg["paths"]["notes"])
+    df_all["outcome"] = df_all["outcome"].fillna(0).astype(int)
+
+    df_all = df_all[df_all[["path_img_fr", "path_img_la", "path_clinical_note"]].notna().all(axis=1)]
+    df_all = df_all.drop_duplicates("study_id")
+    df_all = df_all[columns_to_write]
+
+    output_path = cfg["paths"]["output"]
+    first_chunk = True
+    for start in range(0, len(df_all), chunk_size):
+        chunk_df = df_all.iloc[start:start+chunk_size]
+        chunk_df.to_csv(output_path, mode="w" if first_chunk else "a",
+                        header=first_chunk, index=False, columns=columns_to_write)
+        first_chunk = False
+        print(f"[INFO] Saved chunk {start} to {start+len(chunk_df)} / {len(df_all)}")
+
+    end_time = time.time()
+    print(f"[INFO] Dataset prepared in {end_time - start_time:.2f} seconds")
+    return df_all
