@@ -7,6 +7,7 @@ from .note_generator import load_note_gpu
 import pandas as pd
 from pathlib import Path
 import time
+from tqdm import tqdm
 
 def build_dataset(cfg, chunk_size=200):
     start_time = time.time()
@@ -19,7 +20,6 @@ def build_dataset(cfg, chunk_size=200):
     split = build_split_features(cfg)
     metadata = build_metadata_features(cfg)
 
-    # فقط study_id هایی که عکس دارن
     valid_studies = metadata["study_id"].unique()
 
     chexpert = chexpert[chexpert["study_id"].isin(valid_studies)]
@@ -54,12 +54,11 @@ def build_dataset(cfg, chunk_size=200):
 
     output_path = cfg["paths"]["output"]
     first_chunk = True
-    for start in range(0, len(df_all), chunk_size):
+    for start in tqdm(range(0, len(df_all), chunk_size), desc="Writing dataset chunks"):
         chunk_df = df_all.iloc[start:start+chunk_size]
         chunk_df.to_csv(output_path, mode="w" if first_chunk else "a",
                         header=first_chunk, index=False, columns=columns_to_write)
         first_chunk = False
-        print(f"[INFO] Saved chunk {start} to {start+len(chunk_df)} / {len(df_all)}")
 
     end_time = time.time()
     print(f"[INFO] Dataset prepared in {end_time - start_time:.2f} seconds")
