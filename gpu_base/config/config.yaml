@@ -5,11 +5,11 @@ paths:
   metadata: ../mimicdst/mimic-cxr-2.0.0-metadata.csv.gz
   split: ../mimicdst/mimic-cxr-2.0.0-split.csv.gz
   
-  images: ../mimicdst/P10_Samples
-  notes: ../mimicdst/P10_ClinicalNotes
+  #images: ../mimicdst/P10_Samples
+  #notes: ../mimicdst/P10_ClinicalNotes
 
-  #notes: /media/mohammad/Vir3/Agentic AI/Data/mimic-cxr-reports
-  #images: /media/mohammad/Vir3/Agentic AI/Data/physionet.org/files/mimic-cxr-jpg/2.1.0/files
+  notes: /media/mohammad/Vir3/Agentic AI/Data/mimic-cxr-reports
+  images: /media/mohammad/Vir3/Agentic AI/Data/physionet.org/files/mimic-cxr-jpg/2.1.0/files
 
 
   patients_features: ../mimicdst/mimic-dst-outcome/patients.csv.gz
