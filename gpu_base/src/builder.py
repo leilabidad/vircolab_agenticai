@@ -3,6 +3,7 @@ from .features.ed import build_ed_features
 from .features.chexpert import build_chexpert_features
 from .features.split import build_split_features
 from .features.metadata import build_metadata_features
+from .features.outcome import add_outcome_from_admissions
 from .note_generator import load_note_gpu
 import pandas as pd
 from pathlib import Path
@@ -59,14 +60,12 @@ def build_dataset(cfg, chunk_size=200):
     if proceed.lower() != "y":
         raise SystemExit("Aborted by user")
 
-    # اضافه کردن مسیر نوت و ستون outcome
     if not df_all.empty:
         df_all["path_clinical_note"] = load_note_gpu(df_all[["subject_id", "study_id"]], paths["notes"])
-        if "outcome" not in df_all.columns:
-            df_all["outcome"] = 0
-        df_all["outcome"] = df_all["outcome"].fillna(0).astype(int)
 
-        # فقط ردیف‌هایی که مسیر تصویر و نوت دارن نگه دار
+        df_all["outcome"] = add_outcome_from_admissions(df_all, cfg["paths"]["admissions_features"])["outcome"]
+
+
         img_cols = [c for c in ["path_img_fr", "path_img_la", "path_clinical_note"] if c in df_all.columns]
         if img_cols:
             df_all = df_all[df_all[img_cols].notna().all(axis=1)]
