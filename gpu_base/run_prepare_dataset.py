@@ -12,6 +12,7 @@ def main():
     print("Visits:", len(df))
     print("Frontal:", df["path_img_fr"].notna().sum())
     print("Lateral:", df["path_img_la"].notna().sum())
+    print("Patients:", df["subject_id"].nunique())
     print("Positive:", int(df["outcome"].sum()))
 
 if __name__ == "__main__":

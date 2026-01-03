@@ -11,28 +11,42 @@ from tqdm import tqdm
 
 def build_dataset(cfg, chunk_size=200):
     start_time = time.time()
+    paths = cfg["paths"]
 
     demographic = build_demographic_features(cfg)
     ed = build_ed_features(cfg)
-    mimic = demographic.merge(ed, on="subject_id", how="left")
+
+    if not demographic.empty and not ed.empty:
+        mimic = demographic.merge(ed, on="subject_id", how="left")
+    elif not demographic.empty:
+        mimic = demographic.copy()
+    elif not ed.empty:
+        mimic = ed.copy()
+    else:
+        mimic = pd.DataFrame()
 
     chexpert = build_chexpert_features(cfg)
     split = build_split_features(cfg)
     metadata = build_metadata_features(cfg)
 
-    valid_studies = metadata["study_id"].unique()
+    valid_studies = metadata["study_id"].unique() if not metadata.empty else []
 
-    chexpert = chexpert[chexpert["study_id"].isin(valid_studies)]
-    split = split[split["study_id"].isin(valid_studies)]
-    mimic = mimic[mimic["study_id"].isin(valid_studies)]
+    if not chexpert.empty:
+        chexpert = chexpert[chexpert["study_id"].isin(valid_studies)]
+    if not split.empty:
+        split = split[split["study_id"].isin(valid_studies)]
+    if not mimic.empty:
+        mimic = mimic[mimic["study_id"].isin(valid_studies)]
 
-    df_all = (
-        chexpert
-        .merge(split, on="study_id", how="left")
-        .merge(metadata, on="study_id", how="left")
-        .merge(mimic, on="subject_id", how="left")
-    )
+    df_all = chexpert
+    if not split.empty:
+        df_all = df_all.merge(split, on="study_id", how="left")
+    if not metadata.empty:
+        df_all = df_all.merge(metadata, on="study_id", how="left")
+    if not mimic.empty:
+        df_all = df_all.merge(mimic, on="subject_id", how="left")
 
+    # cleanup ستون‌ها
     if "study_id_x" in df_all.columns:
         df_all.rename(columns={"study_id_x": "study_id"}, inplace=True)
     if "study_id_y" in df_all.columns:
@@ -40,24 +54,35 @@ def build_dataset(cfg, chunk_size=200):
 
     columns_to_write = df_all.columns.tolist()
 
-    print(f"[INFO] Columns in dataset: {df_all.columns.tolist()}")
+    print(f"[INFO] Columns in dataset: {columns_to_write}")
     proceed = input("Do you want to continue with these columns? (y/n): ")
     if proceed.lower() != "y":
         raise SystemExit("Aborted by user")
 
-    df_all["path_clinical_note"] = load_note_gpu(df_all[["subject_id", "study_id"]], cfg["paths"]["notes"])
-    df_all["outcome"] = df_all["outcome"].fillna(0).astype(int)
+    # اضافه کردن مسیر نوت و ستون outcome
+    if not df_all.empty:
+        df_all["path_clinical_note"] = load_note_gpu(df_all[["subject_id", "study_id"]], paths["notes"])
+        if "outcome" not in df_all.columns:
+            df_all["outcome"] = 0
+        df_all["outcome"] = df_all["outcome"].fillna(0).astype(int)
 
-    df_all = df_all[df_all[["path_img_fr", "path_img_la", "path_clinical_note"]].notna().all(axis=1)]
-    df_all = df_all.drop_duplicates("study_id")
-    df_all = df_all[columns_to_write]
+        # فقط ردیف‌هایی که مسیر تصویر و نوت دارن نگه دار
+        img_cols = [c for c in ["path_img_fr", "path_img_la", "path_clinical_note"] if c in df_all.columns]
+        if img_cols:
+            df_all = df_all[df_all[img_cols].notna().all(axis=1)]
 
-    output_path = cfg["paths"]["output"]
+        df_all = df_all.drop_duplicates("study_id")
+
+        # اطمینان از ترتیب ستون‌ها
+        final_cols = ["study_id", "subject_id"] + [c for c in df_all.columns if c not in ["study_id", "subject_id", "outcome"]] + ["outcome"]
+        df_all = df_all[final_cols]
+
+    output_path = paths["output"]
     first_chunk = True
     for start in tqdm(range(0, len(df_all), chunk_size), desc="Writing dataset chunks"):
         chunk_df = df_all.iloc[start:start+chunk_size]
         chunk_df.to_csv(output_path, mode="w" if first_chunk else "a",
-                        header=first_chunk, index=False, columns=columns_to_write)
+                        header=first_chunk, index=False, columns=df_all.columns)
         first_chunk = False
 
     end_time = time.time()
