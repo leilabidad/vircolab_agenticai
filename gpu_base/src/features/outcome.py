@@ -1,26 +1,30 @@
 import pandas as pd
 
 def add_outcome_from_admissions(df, admissions_path):
-    """
-    Add 'outcome' column to df based on 'hospital_expire_flag' from admissions CSV.
+    admissions = pd.read_csv(
+        admissions_path,
+        usecols=["subject_id", "hospital_expire_flag"],
+        compression="gzip"
+    )
 
-    Parameters:
-        df (pd.DataFrame): main dataset containing 'subject_id'
-        admissions_path (str or Path): path to admissions.csv.gz file
+    # Aggregate to one row per subject
+    admissions = (
+        admissions
+        .groupby("subject_id", as_index=False)
+        .hospital_expire_flag
+        .max()
+    )
 
-    Returns:
-        pd.DataFrame: df with 'outcome' column added
-    """
-    # Load admissions with hospital_expire_flag
-    admissions = pd.read_csv(admissions_path, usecols=["subject_id", "hospital_expire_flag"], compression="gzip")
+    # --- Fix type mismatch ---
+    df["subject_id"] = df["subject_id"].astype(str).str.strip()
+    admissions["subject_id"] = admissions["subject_id"].astype(str).str.strip()
+    # ------------------------
 
-    # Merge with main df on subject_id
+    # Merge outcome safely
     df = df.merge(admissions, on="subject_id", how="left")
 
-    # Set outcome based on hospital_expire_flag
-    df["outcome"] = df["hospital_expire_flag"].fillna(0).astype(int)
-
-    # Remove hospital_expire_flag column
+    # Keep NaN where there is no hospital_expire_flag
+    df["outcome"] = df["hospital_expire_flag"]
     df.drop(columns=["hospital_expire_flag"], inplace=True)
 
     return df

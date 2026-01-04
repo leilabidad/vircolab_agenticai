@@ -3,13 +3,14 @@ paths:
   embedding_cm_csv: ../gpu_base/results/embedding_cm.csv
   chexpert: ../mimicdst/mimic-cxr-2.0.0-chexpert.csv.gz
   metadata: ../mimicdst/mimic-cxr-2.0.0-metadata.csv.gz
+  prepared_metadata: ../gpu_base/results/paired_frontal_lateral_by_study.csv
   split: ../mimicdst/mimic-cxr-2.0.0-split.csv.gz
   
   #images: ../mimicdst/P10_Samples
   #notes: ../mimicdst/P10_ClinicalNotes
 
-  notes: /media/mohammad/Vir3/Agentic AI/Data/mimic-cxr-reports
-  images: /media/mohammad/Vir3/Agentic AI/Data/physionet.org/files/mimic-cxr-jpg/2.1.0/files
+  notes: /media/mohammad/Vir3/AgenticAI/Data/mimic-cxr-reports
+  images: /media/mohammad/Vir3/AgenticAI/Data/physionet.org/files/mimic-cxr-jpg/2.1.0/files
 
 
   patients_features: ../mimicdst/mimic-dst-outcome/patients.csv.gz

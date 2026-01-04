@@ -1,16 +1,17 @@
 from pathlib import Path
 
+
+
 def load_note_gpu(df, base_path):
     result = []
     for _, row in df.iterrows():
         subject_id = str(row.subject_id)
         study_id = str(row.study_id)
         note_path = Path(base_path) / f"p{subject_id[:2]}" / f"p{subject_id}" / f"s{study_id}.txt"
-        if note_path.exists() and note_path.stat().st_size > 0:
-            result.append(str(note_path))
-        else:
-            result.append(None)
+        result.append(str(note_path))
     return result
+
+
 
 def build_note_gpu(df, labels, cfg):
     note_dir = Path(cfg["paths"]["notes"])

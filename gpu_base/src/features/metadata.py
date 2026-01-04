@@ -4,40 +4,77 @@ from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 import os
 
-def _check_paths_exist(paths):
-    results = []
-    with ThreadPoolExecutor() as ex:
-        for res in tqdm(ex.map(os.path.exists, paths), total=len(paths), desc="Checking images"):
-            results.append(res)
-    return results
 
-def build_metadata_features(cfg):
-    df = pd.read_csv(cfg["paths"]["metadata"], usecols=["subject_id", "study_id", "dicom_id", "ViewPosition"])
-    assert len(df) > 0, "METADATA CSV IS EMPTY"
+def _check_paths_exist(paths):
+    with ThreadPoolExecutor() as ex:
+        return list(
+            tqdm(
+                ex.map(os.path.exists, paths),
+                total=len(paths),
+                desc="Checking images"
+            )
+        )
+
+
+def build_metadata_features(cfg, output_csv):
+    df = pd.read_csv(
+        cfg["paths"]["metadata"],
+        usecols=["subject_id", "study_id", "dicom_id", "ViewPosition"]
+    )
+    assert not df.empty, "Metadata CSV is empty"
 
     base = Path(cfg["paths"]["images"])
-    assert base.exists(), f"IMAGE BASE PATH DOES NOT EXIST: {base}"
+    assert base.exists(), f"Image base path does not exist: {base}"
 
-    out = []
-    for views, col in [(["PA", "AP"], "path_img_fr"), (["LATERAL"], "path_img_la")]:
+    view_map = {
+        "path_img_fr": ["PA", "AP"],
+        "path_img_la": ["LATERAL"]
+    }
+
+    view_dfs = {}
+
+    for col, views in view_map.items():
         tmp = df[df["ViewPosition"].isin(views)].copy()
         if tmp.empty:
             continue
 
-        tmp[col] = [str(base / ("p"+str(s)[:2]) / ("p"+str(s)) / ("s"+str(st)) / (str(d)+".jpg"))
-                     for s, st, d in zip(tmp["subject_id"], tmp["study_id"], tmp["dicom_id"])]
+        tmp[col] = [
+            str(base / f"p{str(s)[:2]}" / f"p{s}" / f"s{st}" / f"{d}.jpg")
+            for s, st, d in zip(tmp.subject_id, tmp.study_id, tmp.dicom_id)
+        ]
+
         exists = _check_paths_exist(tmp[col])
         tmp = tmp[exists]
+
         if tmp.empty:
             continue
 
-        tmp = tmp.sort_values(["study_id", "dicom_id"]).drop_duplicates("study_id")
-        out.append(tmp[["study_id", col]])
+        tmp = (
+            tmp.sort_values(["study_id", "dicom_id"])
+               .drop_duplicates("study_id")
+               [["study_id", col]]
+        )
 
-    assert out, "NO IMAGES FOUND AT ALL — CHECK PATH LOGIC"
+        view_dfs[col] = tmp
 
-    meta = out[0]
-    for t in out[1:]:
-        meta = meta.merge(t, on="study_id", how="outer")
+    assert len(view_dfs) == 2, "Frontal or lateral images are completely missing"
+
+    meta = (
+        view_dfs["path_img_fr"]
+        .merge(view_dfs["path_img_la"], on="study_id", how="inner")
+        .sort_values("study_id")
+        .reset_index(drop=True)
+    )
+
+    assert not meta.empty, "No studies with both frontal and lateral images found"
+    meta = meta.drop_duplicates("study_id")
+
+    meta.to_csv(output_csv, index=False)
+
+    print("===================================")
+    print(f"Total output rows: {len(meta)}")
+    print(f"CSV saved to: {output_csv}")
+    print("===================================")
 
     return meta
+

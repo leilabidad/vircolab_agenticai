@@ -13,7 +13,18 @@ def main():
     print("Frontal:", df["path_img_fr"].notna().sum())
     print("Lateral:", df["path_img_la"].notna().sum())
     print("Patients:", df["subject_id"].nunique())
-    print("Positive:", int(df["outcome"].sum()))
+
+    # Outcome stats
+    num_positive = int(df["outcome"].sum(skipna=True))  # جمع فقط ردیف های غیر خالی
+    num_zero = (df["outcome"] == 0).sum()
+    num_missing = df["outcome"].isna().sum()
+
+    print("Positive (outcome=1):", num_positive)
+    print("Zero (outcome=0):", num_zero)
+    print("Missing (outcome=NaN):", num_missing)
+
+
+
 
 if __name__ == "__main__":
     main()
