@@ -1,0 +1,9 @@
+file_name,unique_subjects,unique_visits,outcome_0,outcome_1,outcome_empty,male_count,female_count,gender_unknown
+WOE_CSV,45008.0,74750,56049.0,5492.0,13209.0,33218.0,28323.0,13209.0
+FULL_CSV,9624.0,18306,12814.0,5492.0,0.0,9674.0,8632.0,0.0
+TRAIN_CM_CSV,7575.0,12814,,,,,,
+TRAIN_SC_CSV,7575.0,12814,,,,,,
+TEST_CSV,4036.0,5492,3790.0,1702.0,0.0,2879.0,2613.0,0.0
+TEST_CM_OUT,4036.0,5492,,,,,,
+TEST_SC_OUT,2981.0,3630,,,,,,
+TRAIN_CM_SC_vs_FULL,,12814,9024.0,3790.0,0.0,,,
